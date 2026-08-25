@@ -862,6 +862,11 @@ def create_user_router(
         try:
             data = await state.get_data()
 
+            print(
+                "🟡 CHECKOUT DATA:",
+                data,
+            )
+
             cart = data.get(
                 "cart",
                 [],
@@ -908,6 +913,10 @@ def create_user_router(
                 )
                 return
 
+            print(
+                "🟡 CUSTOMER SAQLANMOQDA..."
+            )
+
             customer = await repo.upsert_customer(
                 user_id,
                 callback.from_user.username,
@@ -922,6 +931,15 @@ def create_user_router(
                 ),
             )
 
+            print(
+                "🟢 CUSTOMER SAQLANDI:",
+                customer,
+            )
+
+            print(
+                "🟡 ORDER SAQLANMOQDA..."
+            )
+
             order = await repo.create_order(
                 customer["id"],
                 cart,
@@ -934,6 +952,11 @@ def create_user_router(
                 data.get("comment"),
                 latitude=latitude,
                 longitude=longitude,
+            )
+
+            print(
+                "🟢 ORDER SAQLANDI:",
+                order,
             )
 
             order_data = {
@@ -966,7 +989,12 @@ def create_user_router(
                         f"{text}"
                     ),
                 )
-            except Exception:
+            except Exception as edit_error:
+                print(
+                    "⚠️ CONFIRM EDIT ERROR:",
+                    repr(edit_error),
+                )
+
                 await callback.message.answer(
                     (
                         "✅ <b>Buyurtmangiz qabul qilindi!</b>\n\n"
@@ -1014,15 +1042,22 @@ def create_user_router(
                         longitude=longitude,
                     )
 
-                except Exception:
-                    pass
+                except Exception as admin_error:
+                    print(
+                        f"⚠️ ADMIN {admin_id} SEND ERROR:",
+                        repr(admin_error),
+                    )
 
-        except Exception:
+        except Exception as e:
+            print(
+                "\n"
+                "================ CHECKOUT ERROR ================\n"
+                f"{type(e).__name__}: {e!r}\n"
+                "=================================================\n"
+            )
+
             await callback.answer(
-                (
-                    "❌ Buyurtma yaratishda xatolik yuz berdi. "
-                    "Qayta urinib ko‘ring."
-                ),
+                "❌ Buyurtma yaratishda xatolik yuz berdi.",
                 show_alert=True,
             )
 
