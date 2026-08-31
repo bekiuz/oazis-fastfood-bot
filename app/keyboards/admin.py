@@ -53,31 +53,31 @@ def category_admin_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="➕ Kategoriya qo‘shish",
+                    text="➕ Kategoriya qo'shish",
                     callback_data="catadmin:add",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="✏️ Kategoriyani o‘zgartirish",
+                    text="✏️ Kategoriyani o'zgartirish",
                     callback_data="catadmin:edit",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="🗑 Kategoriyani o‘chirish",
+                    text="🗑 Kategoriyani o'chirish",
                     callback_data="catadmin:delete",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="👁 Aktiv/noaktiv qilish",
+                    text="🔄 Aktiv/noaktiv qilish",
                     callback_data="catadmin:toggle",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="🔢 Tartibini o‘zgartirish",
+                    text="🔢 Tartibini o'zgartirish",
                     callback_data="catadmin:sort",
                 )
             ],
@@ -96,31 +96,31 @@ def product_admin_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="➕ Mahsulot qo‘shish",
+                    text="➕ Mahsulot qo'shish",
                     callback_data="prodadmin:add",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="✏️ Mahsulotni o‘zgartirish",
+                    text="✏️ Mahsulotni o'zgartirish",
                     callback_data="prodadmin:edit",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="🗑 Mahsulotni o‘chirish",
+                    text="🗑 Mahsulotni o'chirish",
                     callback_data="prodadmin:delete",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="👁 Aktiv/noaktiv qilish",
+                    text="🔄 Aktiv/noaktiv qilish",
                     callback_data="prodadmin:toggle",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="💰 Narxni o‘zgartirish",
+                    text="💰 Narxni o'zgartirish",
                     callback_data="prodadmin:price",
                 )
             ],
@@ -132,25 +132,25 @@ def product_admin_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
-                    text="📝 Nomini o‘zgartirish",
+                    text="📝 Nomini o'zgartirish",
                     callback_data="prodadmin:name",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="📝 Tavsifini o‘zgartirish",
+                    text="📄 Tavsifini o'zgartirish",
                     callback_data="prodadmin:description",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="📂 Kategoriyasini o‘zgartirish",
+                    text="📂 Kategoriyasini o'zgartirish",
                     callback_data="prodadmin:category",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="🔢 Tartibini o‘zgartirish",
+                    text="🔢 Tartibini o'zgartirish",
                     callback_data="prodadmin:sort",
                 )
             ],
@@ -247,5 +247,5 @@ def order_status_keyboard(
                     ),
                 )
             ],
-        ]   
+        ]
     )

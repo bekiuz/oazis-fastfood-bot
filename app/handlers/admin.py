@@ -38,9 +38,7 @@ def create_admin_router(
     def allowed(user_id: int) -> bool:
         return user_id in settings.admin_ids
 
-    async def deny(
-        callback: CallbackQuery,
-    ) -> None:
+    async def deny(callback: CallbackQuery) -> None:
         await callback.answer(
             "Bu bo‘lim faqat adminlar uchun.",
             show_alert=True,
@@ -51,9 +49,7 @@ def create_admin_router(
     # ============================================================
 
     @router.message(F.text == "⚙️ Admin panel")
-    async def admin_panel(
-        message: Message,
-    ) -> None:
+    async def admin_panel(message: Message) -> None:
         if not allowed(message.from_user.id):
             return
 
@@ -63,9 +59,7 @@ def create_admin_router(
         )
 
     @router.callback_query(F.data == "admin:home")
-    async def admin_home(
-        callback: CallbackQuery,
-    ) -> None:
+    async def admin_home(callback: CallbackQuery) -> None:
         if not allowed(callback.from_user.id):
             await deny(callback)
             return
@@ -81,9 +75,7 @@ def create_admin_router(
     # ============================================================
 
     @router.callback_query(F.data == "admin:menu")
-    async def admin_menu(
-        callback: CallbackQuery,
-    ) -> None:
+    async def admin_menu(callback: CallbackQuery) -> None:
         if not allowed(callback.from_user.id):
             await deny(callback)
             return
@@ -99,9 +91,7 @@ def create_admin_router(
     # ============================================================
 
     @router.callback_query(F.data == "admin:categories")
-    async def categories_admin(
-        callback: CallbackQuery,
-    ) -> None:
+    async def categories_admin(callback: CallbackQuery) -> None:
         if not allowed(callback.from_user.id):
             await deny(callback)
             return
@@ -145,9 +135,7 @@ def create_admin_router(
     # ============================================================
 
     @router.callback_query(F.data == "admin:products")
-    async def products_admin(
-        callback: CallbackQuery,
-    ) -> None:
+    async def products_admin(callback: CallbackQuery) -> None:
         if not allowed(callback.from_user.id):
             await deny(callback)
             return
@@ -193,9 +181,7 @@ def create_admin_router(
     # ============================================================
 
     @router.callback_query(F.data == "admin:orders")
-    async def orders_admin(
-        callback: CallbackQuery,
-    ) -> None:
+    async def orders_admin(callback: CallbackQuery) -> None:
         if not allowed(callback.from_user.id):
             await deny(callback)
             return
@@ -240,9 +226,7 @@ def create_admin_router(
     @router.callback_query(
         F.data.startswith("orderstatus:")
     )
-    async def order_status(
-        callback: CallbackQuery,
-    ) -> None:
+    async def order_status(callback: CallbackQuery) -> None:
         if not allowed(callback.from_user.id):
             await deny(callback)
             return
@@ -264,7 +248,12 @@ def create_admin_router(
                 order_id,
                 status,
             )
-        except Exception:
+        except Exception as error:
+            print(
+                "ORDER STATUS ERROR:",
+                repr(error),
+            )
+
             await callback.answer(
                 "❌ Statusni o‘zgartirib bo‘lmadi.",
                 show_alert=True,
@@ -309,6 +298,7 @@ def create_admin_router(
             return
 
         await state.clear()
+
         await state.set_state(
             CategoryStates.create_name,
         )
@@ -376,7 +366,7 @@ def create_admin_router(
 
     @router.callback_query(
         CategoryStates.create_active,
-        F.data.startswith("catcreateactive:"),
+        F.data.startswith("catcreateactive:")
     )
     async def category_create_active(
         callback: CallbackQuery,
@@ -394,11 +384,11 @@ def create_admin_router(
 
         await callback.message.answer(
             (
-                f"📂 {data['name']}\n"
+                f"📂 <b>{data['name']}</b>\n"
                 f"Tartib: {data['sort_order']}\n"
                 f"Holat: "
-                f"{'aktiv' if is_active else 'noaktiv'}"
-                "\n\nSaqlansinmi?"
+                f"{'aktiv' if is_active else 'noaktiv'}\n\n"
+                "Saqlansinmi?"
             ),
             reply_markup=confirm_keyboard(
                 "catcreate",
@@ -415,7 +405,7 @@ def create_admin_router(
         await state.clear()
 
         await callback.message.answer(
-            "Kategoriya qo‘shish bekor qilindi.",
+            "❌ Kategoriya qo‘shish bekor qilindi.",
         )
 
         await callback.answer()
@@ -431,11 +421,23 @@ def create_admin_router(
 
         data = await state.get_data()
 
-        await repo.create_category(
-            data["name"],
-            data["sort_order"],
-            data["is_active"],
-        )
+        try:
+            await repo.create_category(
+                data["name"],
+                data["sort_order"],
+                data["is_active"],
+            )
+        except Exception as error:
+            print(
+                "CATEGORY CREATE ERROR:",
+                repr(error),
+            )
+
+            await callback.answer(
+                "❌ Kategoriya saqlanmadi.",
+                show_alert=True,
+            )
+            return
 
         await state.clear()
 
@@ -475,6 +477,13 @@ def create_admin_router(
             active_only=False,
         )
 
+        if not categories:
+            await callback.answer(
+                "Kategoriyalar yo‘q.",
+                show_alert=True,
+            )
+            return
+
         await callback.message.edit_text(
             "Kategoriyani tanlang:",
             reply_markup=select_categories(
@@ -485,7 +494,9 @@ def create_admin_router(
 
         await callback.answer()
 
-    @router.callback_query(F.data.startswith("cataction:"))
+    @router.callback_query(
+        F.data.startswith("cataction:")
+    )
     async def category_action_select(
         callback: CallbackQuery,
         state: FSMContext,
@@ -494,12 +505,19 @@ def create_admin_router(
             await deny(callback)
             return
 
-        _, action, category_id = (
-            callback.data.split(
-                ":",
-                2,
+        try:
+            _, action, category_id = (
+                callback.data.split(
+                    ":",
+                    2,
+                )
             )
-        )
+        except ValueError:
+            await callback.answer(
+                "❌ Noto‘g‘ri kategoriya tugmasi.",
+                show_alert=True,
+            )
+            return
 
         category = await repo.get_category(
             category_id,
@@ -520,8 +538,8 @@ def create_admin_router(
         if action == "delete":
             await callback.message.answer(
                 (
-                    f"🗑 <b>{category['name']}</b> "
-                    "o‘chirilsinmi?"
+                    f"🗑 <b>{category['name']}</b>\n\n"
+                    "Kategoriyani o‘chirishni tasdiqlaysizmi?"
                 ),
                 reply_markup=confirm_keyboard(
                     "catdelete",
@@ -531,9 +549,10 @@ def create_admin_router(
         elif action == "toggle":
             await callback.message.answer(
                 (
-                    f"{category['name']} holati "
+                    f"📂 <b>{category['name']}</b>\n\n"
+                    f"Holatini "
                     f"{'noaktiv' if category['is_active'] else 'aktiv'} "
-                    "qilinsinmi?"
+                    "qilaymi?"
                 ),
                 reply_markup=confirm_keyboard(
                     "cattoggle",
@@ -622,7 +641,7 @@ def create_admin_router(
         await state.clear()
 
         await callback.message.answer(
-            "O‘zgarish bekor qilindi.",
+            "❌ O‘zgarish bekor qilindi.",
         )
 
         await callback.answer()
@@ -640,16 +659,28 @@ def create_admin_router(
 
         field = (
             "name"
-            if data["action"] == "edit"
+            if data.get("action") == "edit"
             else "sort_order"
         )
 
-        await repo.update_category(
-            data["category_id"],
-            **{
-                field: data["new_value"],
-            },
-        )
+        try:
+            await repo.update_category(
+                data["category_id"],
+                **{
+                    field: data["new_value"],
+                },
+            )
+        except Exception as error:
+            print(
+                "CATEGORY EDIT ERROR:",
+                repr(error),
+            )
+
+            await callback.answer(
+                "❌ Kategoriyani yangilab bo‘lmadi.",
+                show_alert=True,
+            )
+            return
 
         await state.clear()
 
@@ -671,7 +702,7 @@ def create_admin_router(
         await state.clear()
 
         await callback.message.answer(
-            "O‘chirish bekor qilindi.",
+            "❌ O‘chirish bekor qilindi.",
         )
 
         await callback.answer()
@@ -691,15 +722,21 @@ def create_admin_router(
             await repo.delete_category(
                 data["category_id"],
             )
-        except Exception:
-            await callback.message.answer(
-                (
-                    "❌ Kategoriya o‘chirilmadi. "
-                    "Unda mahsulotlar bo‘lishi mumkin."
-                )
+        except Exception as error:
+            print(
+                "CATEGORY DELETE ERROR:",
+                repr(error),
             )
 
             await state.clear()
+
+            await callback.message.answer(
+                (
+                    "❌ Kategoriyani o‘chirib bo‘lmadi.\n\n"
+                    "Unga mahsulotlar biriktirilgan bo‘lishi mumkin."
+                )
+            )
+
             await callback.answer()
             return
 
@@ -723,7 +760,7 @@ def create_admin_router(
         await state.clear()
 
         await callback.message.answer(
-            "O‘zgarish bekor qilindi.",
+            "❌ O‘zgarish bekor qilindi.",
         )
 
         await callback.answer()
@@ -744,16 +781,30 @@ def create_admin_router(
         )
 
         if not category:
+            await state.clear()
+
             await callback.answer(
                 "Kategoriya topilmadi.",
                 show_alert=True,
             )
             return
 
-        await repo.update_category(
-            data["category_id"],
-            is_active=not category["is_active"],
-        )
+        try:
+            await repo.update_category(
+                data["category_id"],
+                is_active=not category["is_active"],
+            )
+        except Exception as error:
+            print(
+                "CATEGORY TOGGLE ERROR:",
+                repr(error),
+            )
+
+            await callback.answer(
+                "❌ Kategoriya holatini o‘zgartirib bo‘lmadi.",
+                show_alert=True,
+            )
+            return
 
         await state.clear()
 
@@ -780,7 +831,15 @@ def create_admin_router(
             active_only=False,
         )
 
+        if not categories:
+            await callback.answer(
+                "Avval kamida bitta kategoriya yarating.",
+                show_alert=True,
+            )
+            return
+
         await state.clear()
+
         await state.set_state(
             ProductStates.create_category,
         )
@@ -797,7 +856,7 @@ def create_admin_router(
 
     @router.callback_query(
         ProductStates.create_category,
-        F.data.startswith("prodcreatecat:"),
+        F.data.startswith("prodcreatecat:")
     )
     async def product_create_category(
         callback: CallbackQuery,
@@ -807,6 +866,17 @@ def create_admin_router(
             ":",
             1,
         )[1]
+
+        category = await repo.get_category(
+            category_id,
+        )
+
+        if not category:
+            await callback.answer(
+                "Kategoriya topilmadi.",
+                show_alert=True,
+            )
+            return
 
         await state.update_data(
             category_id=category_id,
@@ -844,7 +914,8 @@ def create_admin_router(
         )
 
         await message.answer(
-            "3/6. Tavsif:",
+            "3/6. Tavsifni kiriting:\n"
+            "Tavsif bo‘lmasa, - yuboring.",
         )
 
     @router.message(ProductStates.create_description)
@@ -855,6 +926,9 @@ def create_admin_router(
         description = (
             message.text or ""
         ).strip()
+
+        if description == "-":
+            description = ""
 
         await state.update_data(
             description=description,
@@ -931,15 +1005,12 @@ def create_admin_router(
         message: Message,
     ) -> None:
         await message.answer(
-            (
-                "Iltimos, mahsulot rasmini "
-                "Telegram orqali yuboring."
-            ),
+            "Iltimos, mahsulot rasmini Telegram orqali yuboring.",
         )
 
     @router.callback_query(
         ProductStates.create_active,
-        F.data.startswith("prodcreateactive:"),
+        F.data.startswith("prodcreateactive:")
     )
     async def product_create_active(
         callback: CallbackQuery,
@@ -958,11 +1029,11 @@ def create_admin_router(
         await callback.message.answer(
             (
                 f"🍔 <b>{data['name']}</b>\n"
-                f"Tavsif: {data['description']}\n"
+                f"Tavsif: {data['description'] or '—'}\n"
                 f"Narx: {money(data['price'])}\n"
                 f"Holat: "
-                f"{'aktiv' if is_active else 'noaktiv'}"
-                "\n\nSaqlansinmi?"
+                f"{'aktiv' if is_active else 'noaktiv'}\n\n"
+                "Saqlansinmi?"
             ),
             reply_markup=confirm_keyboard(
                 "prodcreate",
@@ -979,7 +1050,7 @@ def create_admin_router(
         await state.clear()
 
         await callback.message.answer(
-            "Mahsulot qo‘shish bekor qilindi.",
+            "❌ Mahsulot qo‘shish bekor qilindi.",
         )
 
         await callback.answer()
@@ -995,21 +1066,37 @@ def create_admin_router(
 
         data = await state.get_data()
 
-        data.pop(
-            "action",
-            None,
-        )
+        product_data = {
+            "category_id": data["category_id"],
+            "name": data["name"],
+            "description": data.get("description", ""),
+            "price": data["price"],
+            "image_file_id": data.get("image_file_id"),
+            "is_active": data["is_active"],
+            "sort_order": 0,
+        }
 
-        data["sort_order"] = 0
+        try:
+            await repo.create_product(
+                product_data,
+            )
+        except Exception as error:
+            print(
+                "PRODUCT CREATE ERROR:",
+                repr(error),
+            )
 
-        await repo.create_product(
-            data,
-        )
+            await callback.answer(
+                "❌ Mahsulot saqlanmadi.",
+                show_alert=True,
+            )
+            return
 
         await state.clear()
 
         await callback.message.answer(
             "✅ Mahsulot saqlandi.",
+            reply_markup=product_admin_keyboard(),
         )
 
         await callback.answer()
@@ -1049,6 +1136,13 @@ def create_admin_router(
             active_only=False,
         )
 
+        if not products:
+            await callback.answer(
+                "Mahsulotlar yo‘q.",
+                show_alert=True,
+            )
+            return
+
         await callback.message.edit_text(
             "Mahsulotni tanlang:",
             reply_markup=select_products(
@@ -1074,12 +1168,19 @@ def create_admin_router(
             await deny(callback)
             return
 
-        _, action, product_id = (
-            callback.data.split(
-                ":",
-                2,
+        try:
+            _, action, product_id = (
+                callback.data.split(
+                    ":",
+                    2,
+                )
             )
-        )
+        except ValueError:
+            await callback.answer(
+                "❌ Noto‘g‘ri mahsulot tugmasi.",
+                show_alert=True,
+            )
+            return
 
         product = await repo.get_product(
             product_id,
@@ -1100,8 +1201,8 @@ def create_admin_router(
         if action == "delete":
             await callback.message.answer(
                 (
-                    f"🗑 <b>{product['name']}</b> "
-                    "o‘chirilsinmi?"
+                    f"🗑 <b>{product['name']}</b>\n\n"
+                    "Bu mahsulotni o‘chirishni tasdiqlaysizmi?"
                 ),
                 reply_markup=confirm_keyboard(
                     "proddelete",
@@ -1111,9 +1212,10 @@ def create_admin_router(
         elif action == "toggle":
             await callback.message.answer(
                 (
-                    f"Mahsulot holati "
+                    f"🍔 <b>{product['name']}</b>\n\n"
+                    f"Holatini "
                     f"{'noaktiv' if product['is_active'] else 'aktiv'} "
-                    "qilinsinmi?"
+                    "qilaymi?"
                 ),
                 reply_markup=confirm_keyboard(
                     "prodtoggle",
@@ -1139,7 +1241,7 @@ def create_admin_router(
             )
 
             await callback.message.answer(
-                "Yangi rasmni yuboring:",
+                "Yangi mahsulot rasmini yuboring:",
             )
 
         else:
@@ -1164,6 +1266,10 @@ def create_admin_router(
 
         await callback.answer()
 
+    # ============================================================
+    # PRODUCT CATEGORY CHANGE
+    # ============================================================
+
     @router.callback_query(
         F.data.startswith("prodcat:")
     )
@@ -1171,12 +1277,34 @@ def create_admin_router(
         callback: CallbackQuery,
         state: FSMContext,
     ) -> None:
-        _, product_id, category_id = (
-            callback.data.split(
-                ":",
-                2,
+        if not allowed(callback.from_user.id):
+            await deny(callback)
+            return
+
+        try:
+            _, product_id, category_id = (
+                callback.data.split(
+                    ":",
+                    2,
+                )
             )
+        except ValueError:
+            await callback.answer(
+                "❌ Noto‘g‘ri kategoriya tugmasi.",
+                show_alert=True,
+            )
+            return
+
+        category = await repo.get_category(
+            category_id,
         )
+
+        if not category:
+            await callback.answer(
+                "Kategoriya topilmadi.",
+                show_alert=True,
+            )
+            return
 
         await state.update_data(
             product_id=product_id,
@@ -1185,7 +1313,11 @@ def create_admin_router(
         )
 
         await callback.message.answer(
-            "Kategoriya o‘zgarishi saqlansinmi?",
+            (
+                f"📂 Yangi kategoriya: "
+                f"<b>{category['name']}</b>\n\n"
+                "Saqlansinmi?"
+            ),
             reply_markup=confirm_keyboard(
                 "prodedit",
             ),
@@ -1205,6 +1337,14 @@ def create_admin_router(
         message: Message,
         state: FSMContext,
     ) -> None:
+        data = await state.get_data()
+
+        if data.get("action") != "image":
+            await message.answer(
+                "Bu yerda rasm kerak emas.",
+            )
+            return
+
         await state.update_data(
             new_value=message.photo[-1].file_id,
         )
@@ -1231,6 +1371,18 @@ def create_admin_router(
             message.text or ""
         ).strip()
 
+        if not value:
+            await message.answer(
+                "Qiymatni kiriting.",
+            )
+            return
+
+        if action == "image":
+            await message.answer(
+                "Iltimos, rasm yuboring.",
+            )
+            return
+
         if action == "price":
             try:
                 value = str(
@@ -1246,6 +1398,12 @@ def create_admin_router(
                 )
                 return
 
+            if Decimal(value) < 0:
+                await message.answer(
+                    "Narx manfiy bo‘lishi mumkin emas.",
+                )
+                return
+
         if action == "sort":
             try:
                 value = int(value)
@@ -1254,6 +1412,9 @@ def create_admin_router(
                     "Tartib raqami butun son bo‘lishi kerak.",
                 )
                 return
+
+        if action == "description" and value == "-":
+            value = ""
 
         await state.update_data(
             new_value=value,
@@ -1274,7 +1435,7 @@ def create_admin_router(
         await state.clear()
 
         await callback.message.answer(
-            "O‘zgarish bekor qilindi.",
+            "❌ O‘zgarish bekor qilindi.",
         )
 
         await callback.answer()
@@ -1310,22 +1471,35 @@ def create_admin_router(
 
         if not field:
             await callback.answer(
-                "Noma'lum amal.",
+                "Noma‘lum amal.",
                 show_alert=True,
             )
             return
 
-        await repo.update_product(
-            data["product_id"],
-            **{
-                field: data["new_value"],
-            },
-        )
+        try:
+            await repo.update_product(
+                data["product_id"],
+                **{
+                    field: data["new_value"],
+                },
+            )
+        except Exception as error:
+            print(
+                "PRODUCT EDIT ERROR:",
+                repr(error),
+            )
+
+            await callback.answer(
+                "❌ Mahsulotni yangilab bo‘lmadi.",
+                show_alert=True,
+            )
+            return
 
         await state.clear()
 
         await callback.message.answer(
             "✅ Mahsulot yangilandi.",
+            reply_markup=product_admin_keyboard(),
         )
 
         await callback.answer()
@@ -1342,7 +1516,8 @@ def create_admin_router(
         await state.clear()
 
         await callback.message.answer(
-            "O‘chirish bekor qilindi.",
+            "❌ O‘chirish bekor qilindi.",
+            reply_markup=product_admin_keyboard(),
         )
 
         await callback.answer()
@@ -1358,17 +1533,70 @@ def create_admin_router(
 
         data = await state.get_data()
 
-        await repo.delete_product(
-            data["product_id"],
+        product_id = data.get(
+            "product_id",
         )
+
+        if not product_id:
+            await state.clear()
+
+            await callback.answer(
+                "Mahsulot topilmadi.",
+                show_alert=True,
+            )
+            return
+
+        product = await repo.get_product(
+            product_id,
+        )
+
+        if not product:
+            await state.clear()
+
+            await callback.answer(
+                "Mahsulot topilmadi.",
+                show_alert=True,
+            )
+            return
+
+        try:
+            await repo.delete_product(
+                product_id,
+            )
+        except Exception as error:
+            print(
+                "PRODUCT DELETE ERROR:",
+                repr(error),
+            )
+
+            await state.clear()
+
+            await callback.message.answer(
+                (
+                    "❌ Mahsulotni o‘chirib bo‘lmadi.\n\n"
+                    "Bu mahsulot eski buyurtmalarda ishlatilgan "
+                    "bo‘lishi mumkin. Bunday holatda uni "
+                    "o‘chirish o‘rniga noaktiv qilish kerak."
+                ),
+                reply_markup=product_admin_keyboard(),
+            )
+
+            await callback.answer()
+            return
 
         await state.clear()
 
         await callback.message.answer(
-            "✅ Mahsulot o‘chirildi.",
+            (
+                f"✅ <b>{product['name']}</b> "
+                "muvaffaqiyatli o‘chirildi."
+            ),
+            reply_markup=product_admin_keyboard(),
         )
 
-        await callback.answer()
+        await callback.answer(
+            "Mahsulot o‘chirildi.",
+        )
 
     # ============================================================
     # PRODUCT TOGGLE
@@ -1382,7 +1610,8 @@ def create_admin_router(
         await state.clear()
 
         await callback.message.answer(
-            "O‘zgarish bekor qilindi.",
+            "❌ O‘zgarish bekor qilindi.",
+            reply_markup=product_admin_keyboard(),
         )
 
         await callback.answer()
@@ -1398,26 +1627,54 @@ def create_admin_router(
 
         data = await state.get_data()
 
-        product = await repo.get_product(
-            data["product_id"],
+        product_id = data.get(
+            "product_id",
         )
 
-        if not product:
+        if not product_id:
+            await state.clear()
+
             await callback.answer(
                 "Mahsulot topilmadi.",
                 show_alert=True,
             )
             return
 
-        await repo.update_product(
-            data["product_id"],
-            is_active=not product["is_active"],
+        product = await repo.get_product(
+            product_id,
         )
+
+        if not product:
+            await state.clear()
+
+            await callback.answer(
+                "Mahsulot topilmadi.",
+                show_alert=True,
+            )
+            return
+
+        try:
+            await repo.update_product(
+                product_id,
+                is_active=not product["is_active"],
+            )
+        except Exception as error:
+            print(
+                "PRODUCT TOGGLE ERROR:",
+                repr(error),
+            )
+
+            await callback.answer(
+                "❌ Mahsulot holatini o‘zgartirib bo‘lmadi.",
+                show_alert=True,
+            )
+            return
 
         await state.clear()
 
         await callback.message.answer(
             "✅ Mahsulot holati yangilandi.",
+            reply_markup=product_admin_keyboard(),
         )
 
         await callback.answer()
