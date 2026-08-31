@@ -90,12 +90,8 @@ def _location_text(
     location = order.get("location")
 
     if isinstance(location, dict):
-        location_latitude = location.get(
-            "latitude"
-        )
-        location_longitude = location.get(
-            "longitude"
-        )
+        location_latitude = location.get("latitude")
+        location_longitude = location.get("longitude")
 
         if (
             location_latitude is not None
@@ -119,16 +115,11 @@ def _item_total(
     item: dict[str, Any],
 ) -> Decimal:
     """
-    order_items dan kelgan itemda `total` bo‘lsa,
-    shuni ishlatadi.
-
-    Cart ichidagi itemda `total` bo‘lmasa,
-    price × quantity orqali hisoblaydi.
+    order_items dan kelgan itemda total bo'lsa,
+    undan foydalanadi. Aks holda quantity * price hisoblaydi.
     """
     if item.get("total") is not None:
-        return Decimal(
-            str(item["total"])
-        )
+        return Decimal(str(item["total"]))
 
     price = Decimal(
         str(item.get("price", 0))
@@ -167,59 +158,63 @@ def order_text(
         payment_method or "—",
     )
 
+    customer = order.get("customer")
+
+    customer_name = order.get("customer_name")
+
+    if not customer_name:
+        customer_name = order.get("first_name")
+
+    if not customer_name and isinstance(customer, dict):
+        customer_name = customer.get("first_name")
+
+    if not customer_name:
+        customer_name = "—"
+
     lines = [
-        (
-            f"🧾 <b>Buyurtma "
-            f"#{str(order_id)[:8]}</b>"
-        ),
+        f"🧾 <b>Buyurtma #{str(order_id)[:8]}</b>",
         f"Holat: {status_label}",
         (
             f"💰 Jami: "
             f"<b>{money(order.get('total_amount', 0))}</b>"
         ),
-        f"💳 To‘lov: {payment_label}",
-        _location_text(order),
+        f"👤 Ism: {customer_name}",
+        f"💳 To'lov: {payment_label}",
     ]
 
-    customer_name = order.get(
-        "customer_name",
-    )
-
-    if customer_name:
-        lines.append(
-            f"👤 Ism: {customer_name}"
-        )
-
-    phone = order.get(
-        "phone",
-    )
+    phone = order.get("phone")
 
     if phone:
         lines.append(
             f"📞 Telefon: {phone}"
         )
 
-    comment = order.get(
-        "comment",
+    lines.append(
+        _location_text(order)
     )
+
+    comment = order.get("comment")
 
     if comment:
         lines.append(
             f"📝 Izoh: {comment}"
         )
 
-    for item in order.get(
-        "order_items",
-        [],
-    ):
-        item_total = _item_total(item)
+    items = order.get("order_items", [])
 
-        lines.append(
-            (
-                f"• {item.get('product_name', item.get('name', 'Mahsulot'))} "
-                f"× {item.get('quantity', 0)} — "
-                f"{money(item_total)}"
+    if items:
+        lines.append("")
+        lines.append("<b>🛒 Mahsulotlar:</b>")
+
+        for item in items:
+            item_total = _item_total(item)
+
+            lines.append(
+                (
+                    f"• {item.get('product_name', item.get('name', 'Mahsulot'))} "
+                    f"× {item.get('quantity', 0)} — "
+                    f"{money(item_total)}"
+                )
             )
-        )
 
     return "\n".join(lines)
